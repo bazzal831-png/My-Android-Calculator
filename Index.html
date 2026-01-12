@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ar" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Android Calculator Pro - Optimized v2</title>
+    <style>
+        /* --- 1. إعدادات التصميم الأساسية (CSS) --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; -webkit-tap-highlight-color: transparent; outline: none; }
+        
+        body { 
+            background-color: #000; 
+            height: 100vh; 
+            width: 100vw;
+            overflow: hidden; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            user-select: none; /* منع تحديد النصوص */
+            /* دعم النوتش في الآيفون والأندرويد الحديث */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+        
+        .calculator-container {
+            width: 100%;
+            height: 100%;
+            background-color: #121212;
+            display: flex; flex-direction: column; position: relative;
+        }
+
+        .screen-area {
+            flex: 1; 
+            display: flex; flex-direction: column; justify-content: flex-end;
+            padding: 20px 25px; text-align: right; 
+            overflow: hidden; /* منع ظهور أشرطة التمرير */
+            max-height: 40vh; 
+        }
+
+        .indicators {
+            position: absolute; top: 10px; left: 20px; display: flex; gap: 20px;
+            align-items: center;
+            font-size: 0.9rem; color: #777; font-weight: bold; z-index: 20;
+            background-color: rgba(18, 18, 18, 0.8); padding: 5px; border-radius: 5px;
+        }
+
+        .icon-svg {
+            width: 20px; height: 20px; fill: currentColor;
+            display: inline-block; vertical-align: middle;
+        }
+
+        #modeIndicator { display: none; cursor: pointer; }
+        .calculator-container.scientific-mode #modeIndicator { display: block; }
+
+        /* تحسين خانة الإدخال: خط واحد، تمرير أفقي */
+        #input-display {
+            width: 100%; background: transparent; border: none; color: #fff;
+            font-size: 3.5rem; text-align: right; margin-bottom: 5px; flex-shrink: 0;
+            pointer-events: none; /* المستخدم لا يكتب بلوحة المفاتيح */
+            white-space: nowrap; overflow: hidden;
+        }
+
+        #live-result {
+            min-height: 35px; font-size: 1.8rem; color: #888; 
+            margin-bottom: 10px; font-family: monospace;
+            word-wrap: break-word; word-break: break-all; flex-shrink: 0;
+        }
+
+        /* الشبكة (Grid) للأزرار */
+        .keypad {
+            background-color: #1a1a1a;
+            display: grid; gap: 1px; flex-grow: 1; height: 60%;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(5, 1fr); 
+            z-index: 10;
+        }
+        /* الوضع العلمي */
+        .calculator-container.scientific-mode .keypad { grid-template-columns: repeat(7, 1fr); }
+
+        button {
+            border: none; background-color: #1a1a1a; color: #e0e0e0;
+            font-size: 1.5rem; cursor: pointer;
+            width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+            touch-action: manipulation;
+        }
+        button:active { background-color: #333; }
+
+        .btn-sci { display: none; font-size: 1.1rem; background-color: #161616; }
+        .calculator-container.scientific-mode .btn-sci { display: flex; }
+
+        #toggleBtnMobile { display: flex; } 
+        .calculator-container.scientific-mode #toggleBtnMobile { display: none !important; }
+
+        .btn-red { color: #ff6b6b; font-weight: bold; }
+        .btn-green { color: #448AFF; font-size: 1.6rem; }
+        
+        .btn-equal {
+            background-color: #448AFF; 
+            color: #fff; border-radius: 50%;
+            width: 70px; height: 70px; margin: auto;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 10px rgba(68, 138, 255, 0.3);
+        }
+
+        /* واجهة السجل (History) */
+        .history-view {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: #000; z-index: 100; transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            padding: 20px 10px; display: flex; flex-direction: column;
+        }
+        .history-view.active { transform: translateY(0); }
+        .history-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #333; color: #fff; }
+        .history-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .history-item { padding: 20px 15px; margin-bottom: 10px; text-align: right; border-bottom: 1px solid #1f1f1f; cursor: pointer; }
+        .hist-exp { color: #9e9e9e; font-size: 1.2rem; }
+        .hist-res { color: #ffffff; font-size: 2.4rem; }
+        .equal-sign { color: #448AFF; margin-right: 10px; } 
+
+        /* Modals & Toasts */
+        #custom-toast {
+            visibility: hidden; min-width: 250px; background-color: #333; color: #fff;
+            text-align: center; border-radius: 50px; padding: 16px; position: fixed;
+            z-index: 200; left: 50%; bottom: 30px; transform: translateX(-50%);
+            opacity: 0; transition: opacity 0.3s, bottom 0.3s;
+        }
+        #custom-toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.7); z-index: 300; justify-content: center; align-items: center;
+        }
+        .modal-box {
+            background-color: #1e1e1e; width: 85%; max-width: 320px;
+            padding: 20px; border-radius: 15px; text-align: center; border: 1px solid #333;
+        }
+        .modal-buttons { display: flex; justify-content: space-around; gap: 10px; margin-top: 20px; }
+        .modal-btn { flex: 1; padding: 12px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; }
+        .btn-confirm-yes { background-color: #ff6b6b; color: #fff; }
+        .btn-confirm-no { background-color: #333; color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="custom-toast"></div>
+
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-box">
+            <div style="color:#fff; font-weight:bold; margin-bottom:10px;">مسح السجل</div>
+            <div style="color:#aaa; margin-bottom:20px;">هل أنت متأكد من مسح جميع العمليات؟</div>
+            <div class="modal-buttons">
+                <button class="modal-btn btn-confirm-no" onclick="closeModal()">إلغاء</button>
+                <button class="modal-btn btn-confirm-yes" onclick="confirmClearHistory()">مسح</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="calculator-container" id="calcContainer">
+        
+        <div class="history-view" id="historyView">
+            <div class="history-header">
+                <span onclick="toggleHistory(); vibrate()" style="cursor:pointer; color:#448AFF; padding:10px;">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                </span>
+                <span>السجل</span>
+                <span onclick="openClearModal(); vibrate()" style="cursor:pointer; color:#ff6b6b; padding:10px;">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                </span>
+            </div>
+            <div class="history-list" id="historyList"></div>
+        </div>
+
+        <div class="indicators">
+            <div onclick="toggleHistory(); vibrate()" style="cursor:pointer; padding:5px;">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            </div>
+            <div id="modeIndicator" style="margin-left:20px;" onclick="toggleRadDeg(); vibrate()">RAD</div>
+        </div>
+
+        <div class="screen-area">
+            <input type="text" id="input-display" value="" readonly placeholder="0">
+            <div id="live-result"></div>
+        </div>
+
+        <div class="keypad">
+            <button class="btn-sci" onclick="addFunc('inv')">INV</button>
+            <button class="btn-sci" onclick="toggleRadDeg()" id="btnDeg">DEG</button>
+            <button class="btn-sci" onclick="addOperator('!')">x!</button>
+            
+            <button class="btn-red" onclick="clearAll()">C</button>
+            <button class="btn-green" onclick="addOperator('%')">%</button>
+            <button class="btn-green" onclick="backspace()">
+                <svg class="icon-svg" style="width:24px; height:24px;" viewBox="0 0 24 24"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12.59L17.59 17 14 13.41 10.41 17 9 15.59 12.59 12 9 8.41 10.41 7 14 10.59 17.59 7 19 8.41 15.41 12 19 15.59z"/></svg>
+            </button>
+            <button class="btn-green" onclick="addOperator('/')">÷</button>
+
+            <button class="btn-sci" onclick="addFunc('sin')">sin</button>
+            <button class="btn-sci" onclick="addFunc('cos')">cos</button>
+            <button class="btn-sci" onclick="addFunc('tan')">tan</button>
+            
+            <button onclick="addNum('7')">7</button>
+            <button onclick="addNum('8')">8</button>
+            <button onclick="addNum('9')">9</button>
+            <button class="btn-green" onclick="addOperator('*')">×</button>
+
+            <button class="btn-sci" onclick="addFunc('ln')">ln</button>
+            <button class="btn-sci" onclick="addFunc('log')">log</button>
+            <button class="btn-sci" onclick="addOperator('^')">xʸ</button>
+            
+            <button onclick="addNum('4')">4</button>
+            <button onclick="addNum('5')">5</button>
+            <button onclick="addNum('6')">6</button>
+            <button class="btn-green" onclick="addOperator('-')">−</button>
+
+            <button class="btn-sci" onclick="addConst('π')">π</button>
+            <button class="btn-sci" onclick="addConst('e')">e</button>
+            <button class="btn-sci" onclick="addFunc('√')">√</button>
+            
+            <button onclick="addNum('1')">1</button>
+            <button onclick="addNum('2')">2</button>
+            <button onclick="addNum('3')">3</button>
+            <button class="btn-green" onclick="addOperator('+')">+</button>
+
+            <button class="btn-sci" onclick="addParenthesis()">( )</button>
+            <button class="btn-sci" onclick="addOperator('^2')">x²</button>
+            
+            <button class="btn-green btn-sci" onclick="toggleScientificMode(); vibrate()">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 9h16v2H4V9zm0 4h10v2H4v-2z"/></svg>
+            </button>
+            
+            <button class="btn-green" id="toggleBtnMobile" onclick="toggleScientificMode(); vibrate()">
+                <svg class="icon-svg" style="width:24px; height:24px;" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 2h5v5h-5V5zM7 5h5v5H7V5zm0 14v-5h5v5H7zm7 0v-5h5v5h-5z"/></svg>
+            </button>
+            
+            <button class="btn-sci" onclick="addNum('00')">00</button>
+            
+            <button onclick="addNum('0')">0</button>
+            <button onclick="addNum('.')">.</button>
+            <button class="btn-equal" onclick="commitCalculation()">=</button>
+        </div>
+    </div>
+
+    <script>
+        let expression = "";
+        let isRad = true; 
+        let history = [];
+        let isScientific = false;
+
+        const inputDisplay = document.getElementById('input-display');
+        const liveResultDisplay = document.getElementById('live-result');
+        const calcContainer = document.getElementById('calcContainer');
+        const modeIndicator = document.getElementById('modeIndicator');
+        const btnDeg = document.getElementById('btnDeg');
+
+        // أدوات مساعدة
+        function vibrate() { if (navigator.vibrate) navigator.vibrate(15); }
+
+        function showToast(msg) {
+            const t = document.getElementById("custom-toast");
+            t.textContent = msg; t.className = "show";
+            setTimeout(() => t.className = "", 3000);
+        }
+
+        // ضبط الوضع العلمي تلقائياً للشاشات الكبيرة
+        function checkScreenSize() {
+            if (window.innerWidth > 650) {
+                if(!isScientific) toggleScientificMode();
+            }
+        }
+        window.addEventListener('resize', checkScreenSize);
+        if (window.innerWidth > 650) {
+            isScientific = true;
+            calcContainer.classList.add('scientific-mode');
+        }
+
+        function toggleScientificMode() {
+            isScientific = !isScientific;
+            calcContainer.classList.toggle('scientific-mode');
+        }
+
+        function updateUI() {
+            inputDisplay.value = expression;
+            // جعل النص يمرر لليمين لرؤية آخر مدخلات
+            inputDisplay.scrollLeft = inputDisplay.scrollWidth; 
+            calculateLive();
+        }
+
+        // --- منطق الإدخال (Input Logic) ---
+
+        function addNum(num) {
+            vibrate();
+            const last = expression.slice(-1);
+
+            // الضرب الضمني بعد الأقواس أو الثوابت
+            if (last === ')' || last === 'π' || last === 'e' || last === '!') {
+                expression += "*";
+            }
+
+            // حماية النقطة العشرية
+            if (num === '.') {
+                if (['.', ')', '!', 'π', 'e'].includes(last)) return;
+                
+                const parts = expression.split(/[\+\-\*\/\^\(\)]/);
+                const currentNumberBlock = parts[parts.length - 1];
+                if (currentNumberBlock.includes('.')) return;
+
+                if (expression === '' || isNaN(last)) {
+                    expression += "0."; updateUI(); return;
+                }
+            }
+            expression += num;
+            updateUI();
+        }
+
+        function addOperator(op) {
+            vibrate();
+            const last = expression.slice(-1);
+            
+            // السالب للأرقام السالبة
+            if ((expression === "" || ['+', '*', '/', '^', '('].includes(last)) && op === '-') {
+                expression += op; updateUI(); return;
+            }
+
+            // تبديل العملية الحسابية إذا ضغط المستخدم خطأ
+            if (['+', '-', '*', '/', '^', '.'].includes(last)) {
+                if(last === '(') return; 
+                expression = expression.slice(0, -1) + op;
+            } else if (expression !== "") {
+                expression += op;
+            }
+            updateUI();
+        }
+
+        function addFunc(func) {
+            vibrate();
+            if(func === 'inv') { showToast("قريباً"); return; }
+            const last = expression.slice(-1);
+            if (last === '.') return;
+
+            // ضرب ضمني قبل الدوال (مثلاً 5sin)
+            if ((!isNaN(last) && last !== '') || last === ')' || last === 'π' || last === 'e' || last === '!') {
+                expression += "*";
+            }
+            expression += func + "(";
+            updateUI();
+        }
+
+        function addConst(val) {
+            vibrate();
+            const last = expression.slice(-1);
+            if (last === '.') return;
+            if ((!isNaN(last) && last !== '') || last === ')' || last === 'π' || last === 'e' || last === '!') {
+                expression += "*";
+            }
+            expression += val;
+            updateUI();
+        }
+
+        function addParenthesis() {
+            vibrate();
+            const openCount = (expression.match(/\(/g) || []).length;
+            const closeCount = (expression.match(/\)/g) || []).length;
+            const last = expression.slice(-1);
+
+            if ((!isNaN(last) || last === ')' || last === 'π' || last === 'e') && openCount > closeCount) {
+                expression += ")";
+            } else {
+                if((!isNaN(last) || last === ')' || last === 'π' || last === 'e' || last === '!') && expression !== "" && last !== '.') {
+                    expression += "*";
+                }
+                if (last === '.') return;
+                expression += "(";
+            }
+            updateUI();
+        }
+
+        function clearAll() { vibrate(); expression = ""; liveResultDisplay.textContent = ""; updateUI(); }
+        
+        function backspace() { 
+            vibrate(); 
+            if (expression.length === 0) return;
+            // حذف دوال كاملة
+            const funcs = ["sin(", "cos(", "tan(", "log(", "ln(", "nan", "inf"];
+            let deleted = false;
+            for (let f of funcs) {
+                if (expression.endsWith(f)) {
+                    expression = expression.slice(0, -f.length);
+                    deleted = true; break;
+                }
+            }
+            if (!deleted) expression = expression.slice(0, -1);
+            updateUI(); 
+        }
+
+        function toggleRadDeg() { 
+            vibrate(); 
+            isRad = !isRad; 
+            modeIndicator.textContent = isRad ? "RAD" : "DEG"; 
+            if(btnDeg) btnDeg.textContent = isRad ? "DEG" : "RAD"; 
+            calculateLive(); 
+        }
+
+        function formatResult(num) {
+            if (Math.abs(num) < 1e-13 && Math.abs(num) > 0) return "0";
+            let s = num.toString();
+            if (s.length > 12 || Math.abs(num) > 1e12 || (Math.abs(num) < 1e-7 && num !== 0)) {
+                return num.toPrecision(10).replace(/\.?0+e/, 'e');
+            }
+            return parseFloat(num.toPrecision(12)).toString();
+        }
+
+        // --- المحرك الحسابي (Calculation Engine) ---
+        function calculateLive() {
+            if (!expression) { liveResultDisplay.textContent = ""; return null; }
+            let str = expression;
+
+            try {
+                str = str.replace(/×/g, '*').replace(/÷/g, '/');
+                str = str.replace(/π/g, 'Math.PI').replace(/e/g, 'Math.E');
+                str = str.replace(/([0-9\.)]+)%/g, '($1/100)'); // النسبة المئوية
+
+                const factor = isRad ? 1 : (Math.PI / 180);
+                str = str.replace(/sin\(/g, `Math.sin(${factor}*`);
+                str = str.replace(/cos\(/g, `Math.cos(${factor}*`);
+                str = str.replace(/tan\(/g, `Math.tan(${factor}*`);
+                str = str.replace(/log\(/g, 'Math.log10(').replace(/ln\(/g, 'Math.log(');
+                str = str.replace(/√\(/g, 'Math.sqrt(');
+                str = str.replace(/\^2/g, '**2').replace(/\^/g, '**');
+
+                // معالجة العاملي (!)
+                let loopLimit = 0;
+                while(str.includes('!') && loopLimit < 5) {
+                    str = str.replace(/([0-9\w\.]+|\([^\)]+\))!/g, 'fact($1)');
+                    loopLimit++;
+                }
+
+                const opens = (str.match(/\(/g) || []).length;
+                const closes = (str.match(/\)/g) || []).length;
+                if (opens > closes) str += ")".repeat(opens - closes);
+
+                // دالة الحساب الآمنة
+                const safeCalc = new Function('fact', `return ${str};`);
+                const factorialFunc = (n) => {
+                    if (n < 0) return NaN; 
+                    if (n > 170) return Infinity; 
+                    if (n === 0 || n === 1) return 1;
+                    let r = 1; for (let i = 2; i <= n; i++) r *= i;
+                    return r;
+                };
+
+                const res = safeCalc(factorialFunc);
+                if (isFinite(res) && !isNaN(res)) {
+                    let final = formatResult(res);
+                    liveResultDisplay.textContent = final;
+                    return final;
+                }
+                liveResultDisplay.textContent = ""; return null;
+            } catch (e) {
+                liveResultDisplay.textContent = ""; return null; 
+            }
+        }
+
+        function commitCalculation() {
+            vibrate(); 
+            const res = calculateLive();
+            if (res !== null) {
+                if(history.length === 0 || history[history.length-1].expr !== expression) {
+                    history.push({ expr: expression, res: res });
+                    localStorage.setItem('calcHistory_v2', JSON.stringify(history));
+                    renderHistory();
+                }
+                expression = res; updateUI(); liveResultDisplay.textContent = "";
+            } else {
+                if(expression) showToast("تعبير غير صالح");
+            }
+        }
+
+        // --- السجل (History) ---
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            list.innerHTML = history.length === 0 ? "<div style='text-align:center;color:#555;margin-top:50px;'>السجل فارغ</div>" : "";
+            [...history].reverse().forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `<div class="hist-exp">${item.expr}</div><div class="hist-res"><span class="equal-sign">=</span>${item.res}</div>`;
+                div.onclick = () => { expression = item.res; updateUI(); toggleHistory(); };
+                list.appendChild(div);
+            });
+        }
+        function toggleHistory() { document.getElementById('historyView').classList.toggle('active'); }
+        function openClearModal() { document.getElementById('confirmModal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('confirmModal').style.display = 'none'; }
+        function confirmClearHistory() {
+            history = []; localStorage.removeItem('calcHistory_v2');
+            renderHistory(); closeModal(); showToast("تم مسح السجل");
+        }
+
+        const saved = localStorage.getItem('calcHistory_v2');
+        if(saved) { history = JSON.parse(saved); renderHistory(); }
+        updateUI();
+    </script>
+</body>
+</html>
