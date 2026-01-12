@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Android Calculator Pro - Optimized v2</title>
+    <title>Android Calculator Pro - Optimized v2.1</title>
     <style>
         /* --- 1. إعدادات التصميم الأساسية (CSS) --- */
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; -webkit-tap-highlight-color: transparent; outline: none; }
@@ -36,7 +36,7 @@
             display: flex; flex-direction: column; justify-content: flex-end;
             padding: 20px 25px; text-align: right; 
             overflow: hidden; /* منع ظهور أشرطة التمرير */
-            max-height: 40vh; 
+            max-height: 45vh; /* زيادة مساحة الشاشة قليلاً */
         }
 
         .indicators {
@@ -68,10 +68,12 @@
             word-wrap: break-word; word-break: break-all; flex-shrink: 0;
         }
 
-        /* الشبكة (Grid) للأزرار */
+        /* الشبكة (Grid) للأزرار - تم التعديل هنا */
         .keypad {
             background-color: #1a1a1a;
-            display: grid; gap: 1px; flex-grow: 1; height: 60%;
+            display: grid; gap: 1px; flex-grow: 1; 
+            height: 52%; /* تم تقليل الارتفاع من 60% إلى 52% */
+            margin-bottom: 15px; /* تم إضافة هامش سفلي لرفع الأزرار */
             grid-template-columns: repeat(4, 1fr);
             grid-template-rows: repeat(5, 1fr); 
             z-index: 10;
@@ -99,7 +101,7 @@
         .btn-equal {
             background-color: #448AFF; 
             color: #fff; border-radius: 50%;
-            width: 70px; height: 70px; margin: auto;
+            width: 65px; height: 65px; margin: auto; /* تصغير طفيف للزر */
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 4px 10px rgba(68, 138, 255, 0.3);
         }
